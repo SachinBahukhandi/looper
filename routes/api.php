@@ -33,6 +33,7 @@ Route::post('/login', [AuthenticatedSessionController::class, 'store'])
 
 Route::middleware(['auth:sanctum'])->group(function () {
 
+    Route::post('orders/{order}/add', [OrderController::class, 'add']);
     Route::post('orders/{order}/pay', [OrderController::class, 'pay']);
     Route::apiResource('orders', OrderController::class);
 });

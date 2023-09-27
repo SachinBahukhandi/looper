@@ -38,30 +38,34 @@ class OrderController extends Controller
     public function store(Request $request)
     {
         //
-        try {
-            $validated = $request->validate(
-                [
-                    'product_id' => 'required|exists:products,id'
-                ]
-            );
 
-            $order = Order::firstOrCreate(
+        $validated = $request->validate(
+            [
+                'products' => 'required',
+                'products.*' => 'required|exists:products,id'
+            ]
+        );
+        try {
+
+
+
+            $order = Order::create(
                 [
                     'customer_id' => $request->user()->id,
+                    'paid' => 0
                 ]
             );
 
-            if ($order->paid == 1) {
-                return $this->customResponse(false, 'Cannot add items to a paid order');
-            }
+            $orderDetails = [];
 
+            foreach ($validated['products'] as $product) {
+                $orderDetails[] = [
+                    'order_id' => $order->id,
+                    'product_id' => $product
+                ];
+            }
             if ($order) {
-                $productOrders = OrderDetail::firstOrCreate(
-                    [
-                        'product_id' => $validated['product_id'],
-                        'order_id' => $order->id
-                    ]
-                );
+                $productOrders = OrderDetail::insert($orderDetails);
             }
 
             $order = $order->load('orderDetails.product', 'user');
@@ -98,7 +102,39 @@ class OrderController extends Controller
      */
     public function update(Request $request, Order $order)
     {
-        //
+
+        $validated = $request->validate(
+            [
+                'products' => 'filled',
+                'products.add.*' => 'filled|exists:products,id',
+                'products.remove.*' => 'filled|exists:orders_details,product_id'
+            ]
+        );
+
+        try {
+
+
+            $orderDetails = [];
+
+            foreach ($validated['products']['add'] as $product) {
+                $orderDetails[] = [
+                    'order_id' => $order->id,
+                    'product_id' => $product
+                ];
+            }
+
+            OrderDetail::insertOrIgnore($orderDetails);
+
+            OrderDetail::whereIn('product_id', $validated['products']['remove'])->delete();
+
+            $order = $order->load('orderDetails.product', 'user');
+
+            return new OrderResource($order);
+        } catch (QueryException $e) {
+            return $this->customResponse(true, $e->getMessage());
+        } catch (Exception $e) {
+            return $this->customResponse(true, $e->getMessage());
+        }
     }
 
     /**
@@ -109,11 +145,45 @@ class OrderController extends Controller
         //
         try {
             $orderDetails = OrderDetail::where('order_id', $order->id)->delete();
-            if ($orderDetails) {
-                $order->delete();
-            }
+            $order->delete();
 
             return $this->customResponse(true, 'The order has been deleted');
+        } catch (QueryException $e) {
+            return $this->customResponse(true, $e->getMessage());
+        } catch (Exception $e) {
+            return $this->customResponse(true, $e->getMessage());
+        }
+    }
+
+    /**
+     * Create a service endpoint to attach a product to an existing order. This operation may only be executed as long as the order is not payed.
+     */
+    public function add(Request $request, Order $order)
+    {
+        //
+        try {
+            $validated = $request->validate(
+                [
+                    'product_id' => 'required|exists:products,id'
+                ]
+            );
+
+            if ($order->paid == 1) {
+                return $this->customResponse(false, 'Cannot add items to a paid order');
+            }
+
+            if ($order) {
+                $productOrders = OrderDetail::firstOrCreate(
+                    [
+                        'product_id' => $validated['product_id'],
+                        'order_id' => $order->id
+                    ]
+                );
+            }
+
+            $order = $order->load('orderDetails.product', 'user');
+
+            return new OrderResource($order);
         } catch (QueryException $e) {
             return $this->customResponse(true, $e->getMessage());
         } catch (Exception $e) {

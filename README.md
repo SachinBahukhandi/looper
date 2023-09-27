@@ -67,12 +67,12 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 
 
 
-Commands:
+## Setup:
 
 1. Scaffold the project by cloning, setting up the .env according to the .env.example
 2. Please run the migrations using `php artisan migrate`
 3. Please run the following commands to import the data
-4. Assuming the client might be using the same CSV data to insert/update the same data thus we are upserting the data.
+4. Assuming the client might be using the CSV data to insert/update the same data thus we are upserting the data.
 
 ```
 php artisan import --path <path to products.csv> --type product
