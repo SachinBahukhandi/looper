@@ -1,7 +1,8 @@
 <?php
 
-use App\Helpers\ImportHelperFacade;
-use Carbon\Carbon;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\OrderController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -21,21 +22,17 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 });
 
 
-Route::get('/order', function (Request $request) {
-    $path = '/var/www/open-source/looper/customers.csv';
+Route::post('/register', [RegisteredUserController::class, 'store'])
+    ->middleware('guest')
+    ->name('api.register');
 
-    $users = ImportHelperFacade::importUsers($path);
-
-
-    if (!empty($users['error'])) {
-        $err = true;
-        $errMessage = $users['error']['message'];
-    } elseif (!empty($users['users'])) {
-        $users = ImportHelperFacade::addData($users['users'], 'user');
-    }
+Route::post('/login', [AuthenticatedSessionController::class, 'store'])
+    ->middleware('guest')
+    ->name('api.login');
 
 
+Route::middleware(['auth:sanctum'])->group(function () {
 
-    return $users;
-    // return ImportHelperFacade::import($contents, 'user');
+    Route::post('orders/{order}/pay', [OrderController::class, 'pay']);
+    Route::apiResource('orders', OrderController::class);
 });

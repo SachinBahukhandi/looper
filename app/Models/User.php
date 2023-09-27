@@ -24,8 +24,13 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'phone'
+        'phone',
+        'job_title'
     ];
+
+    protected $attributes = array(
+        'job_title' => 'none'
+      );
 
     /**
      * The attributes that should be hidden for serialization.
