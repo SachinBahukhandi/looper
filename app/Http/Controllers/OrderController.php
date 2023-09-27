@@ -123,25 +123,35 @@ class OrderController extends Controller
 
     public function pay(Request $request, Order $order)
     {
+        try {
+            $orderDetails = $order->load('orderDetails.product');
 
-        $orderDetails = $order->load('orderDetails.product');
-
-        $price = $orderDetails->orderDetails->pluck('product')->pluck('price')->sum();
+            $price = $orderDetails->orderDetails->pluck('product')->pluck('price')->sum();
 
 
-        $response = Http::post(
-            'https://superpay.view.agentur-loop.com/pay',
-            [
-                "order_id" => $order->id,
-                "customer_email" => $request->user()->email,
-                "value" => $price
-            ]
-        );
-        $res = $response->json();
-        if ($response->successful()) {
-            return $this->customResponse(true, $res['message']);
-        } else {
-            return $this->customResponse(false, $res['message']);
+            $response = Http::post(
+                'https://superpay.view.agentur-loop.com/pay',
+                [
+                    "order_id" => $order->id,
+                    "customer_email" => $request->user()->email,
+                    "value" => $price
+                ]
+            );
+            $res = $response->json();
+            if ($response->successful()) {
+                $order->fill(
+                    [
+                        'paid' => 1
+                    ]
+                )->save();
+                return $this->customResponse(true, $res['message']);
+            } else {
+                return $this->customResponse(false, $res['message']);
+            }
+        } catch (\GuzzleHttp\Exception\ConnectException) {
+            return $this->customResponse(false, $e->getMessage());
+        } catch (Exception $e) {
+            return $this->customResponse(false, $e->getMessage());
         }
     }
 
