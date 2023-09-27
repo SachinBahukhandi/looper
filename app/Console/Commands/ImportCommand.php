@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 
 use App\Helpers\ImportHelperFacade;
+use App\Jobs\ProcessImport;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Console\PromptsForMissingInput;
@@ -34,6 +35,7 @@ class ImportCommand extends Command implements PromptsForMissingInput
         $err = false;
         $errMessage = "";
         $path = $this->option('path');
+        $type = $this->option('type');
         if (is_null($path)) {
             $path = $this->ask('What is your path?');
         }
@@ -44,19 +46,13 @@ class ImportCommand extends Command implements PromptsForMissingInput
 
 
         if ($path) {
-            try{
-                $contents = str_getcsv(file_get_contents($path));
-                // $ip = new ImportHelper();
-                // $ip->import($contents);
-                ImportHelperFacade::import($contents);
-
-            }
-            catch(Exception $e){
-                dd($e);
+            try {
+                $contents = ImportHelperFacade::importUsers($path);
+                $this->info("Import started. Please check the logs for the updates!");
+            } catch (Exception $e) {
                 $err = true;
                 $errMessage = "Error reading file from the provided path!";
             }
-
         } else {
             $err = true;
             $errMessage = "File does not exist!";
@@ -65,13 +61,5 @@ class ImportCommand extends Command implements PromptsForMissingInput
         if ($err) {
             $this->error($errMessage);
         }
-
-
-
     }
-
-    // private function keepPrompting(){
-
-    // }
-
 }
