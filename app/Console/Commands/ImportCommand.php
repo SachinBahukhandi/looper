@@ -44,10 +44,14 @@ class ImportCommand extends Command implements PromptsForMissingInput
             $errMessage = 'path is empty!';
         }
 
-
         if ($path) {
             try {
-                $contents = ImportHelperFacade::importUsers($path);
+                if ($type=='product') {
+                    $contents = ImportHelperFacade::importProducts($path);
+                } else {
+                    $contents = ImportHelperFacade::importUsers($path);
+                }
+
                 $this->info("Import started. Please check the logs for the updates!");
             } catch (Exception $e) {
                 $err = true;

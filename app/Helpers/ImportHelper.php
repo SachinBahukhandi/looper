@@ -3,6 +3,7 @@
 namespace App\Helpers;
 
 use App\Jobs\ProcessImport;
+use App\Models\Product;
 use App\Models\User;
 use Carbon\Carbon;
 use Exception;
@@ -20,8 +21,8 @@ class ImportHelper
             if ($type == 'user') {
                 $users = User::upsert($data, 'id');
                 return $users;
-            } elseif ($type == 'products') {
-                $users = User::upsert($data, 'id');
+            } elseif ($type == 'product') {
+                $users = Product::upsert($data, 'id');
                 return $users;
             }
         } catch (QueryException $e) {
@@ -57,18 +58,6 @@ class ImportHelper
             "phone"
         ];
 
-        foreach ($chunks as $key => $chunk) {
-            $data = array_map('str_getcsv', $chunk);
-            if ($key == 0) {
-                $header = $data[0];
-                unset($data[0]);
-            }
-            $batch->add(new ProcessImport($data, 'user', $userMappingArray));
-            return $batch;
-        }
-
-        $header = fgetcsv($file);
-
         $neededHeaders = [ // routes/api.php:29
             "ID",
             "Job Title",
@@ -78,23 +67,72 @@ class ImportHelper
             "phone",
         ];
 
-
-
         $res = [];
-        $users = [];
 
 
 
-        if ($header != $neededHeaders) {
-            $errMessage = "The data format is invalid";
-            $res['error'] = [
-                'message' => $errMessage
-            ];
-            return $res;
+        foreach ($chunks as $key => $chunk) {
+            $data = array_map('str_getcsv', $chunk);
+            if ($key == 0) {
+                $header = $data[0];
+                unset($data[0]);
+            }
+
+            if ($header != $neededHeaders) {
+                $errMessage = "The data format is invalid";
+                $res['error'] = [
+                    'message' => $errMessage
+                ];
+                return $res;
+            }
+            $batch->add(new ProcessImport($data, 'user', $userMappingArray));
+            return $batch;
         }
 
-        fclose($file);
+        return $res;
+    }
 
+    public function importProducts($path)
+    {
+        $file = file($path);
+
+        $chunks = array_chunk($file, 500);
+        $batch  = Bus::batch([])->dispatch();
+
+        $mappingArray = [
+            'id',
+            'name',
+            'price'
+        ];
+
+        $neededHeaders = [ // routes/api.php:29
+            "ID",
+            "productname",
+            "price",
+        ];
+
+        $res = [];
+
+
+
+
+        foreach ($chunks as $key => $chunk) {
+            $data = array_map('str_getcsv', $chunk);
+            if ($key == 0) {
+                $header = $data[0];
+                unset($data[0]);
+            }
+
+            if ($header != $neededHeaders) {
+                $errMessage = "The data format is invalid";
+                $res['error'] = [
+                    'message' => $errMessage
+                ];
+                return $res;
+            }
+            $batch->add(new ProcessImport($data, 'product', $mappingArray));
+            return $batch;
+        }
 
         return $res;
     }
@@ -122,6 +160,26 @@ class ImportHelper
             }
 
             return $users;
+        } elseif ($type == 'product') {
+            $products = [];
+
+            foreach ($data as $content) {
+                $products[] = array_combine($headers, $content);
+            }
+
+            foreach ($products as $key => $product) {
+                if (!empty($products['name'])) {
+                    $this->log(
+                        [
+                            $product,
+                            gettype($products['name'])
+                        ]
+                    );
+                    $products[$key]['name'] = (string) $products[$key]['name'];
+                }
+            }
+
+            return $products;
         }
     }
 }

@@ -28,7 +28,7 @@ class ProcessImport implements ShouldQueue
         //
         $this->contents = $contents;
         $this->type = $type;
-        $this->headers= $headers;
+        $this->headers = $headers;
     }
 
     /**
@@ -41,19 +41,25 @@ class ProcessImport implements ShouldQueue
         $lastId = 0;
         if ($this->batch()->cancelled()) {
             // Determine if the batch has been cancelled...
-            ImportHelperFacade::log(['error'=> true, 'message'=> 'Batch cancelled']);
+            ImportHelperFacade::log(['error' => true, 'message' => 'Batch cancelled']);
             return;
         }
 
-        if ($this->type == 'user') {
-            $users = ImportHelperFacade::prepareChunk($this->contents, $this->headers, $this->type);
-            $lastId = ImportHelperFacade::addData($users, $this->type);
-        }
+        $data = ImportHelperFacade::prepareChunk($this->contents, $this->headers, $this->type);
+        ImportHelperFacade::log($data);
+        $lastId = ImportHelperFacade::addData($data, $this->type);
+
+        // if ($this->type == 'user') {
+        //     $users = ImportHelperFacade::prepareChunk($this->contents, $this->headers, $this->type);
+        //     $lastId = ImportHelperFacade::addData($users, $this->type);
+        // } elseif ($this->type == 'product') {
+        //     $users = ImportHelperFacade::prepareChunk($this->contents, $this->headers, $this->type);
+        //     $lastId = ImportHelperFacade::addData($users, $this->type);
+        // }
 
         if ($this->batch()->finished()) {
-            ImportHelperFacade::log(['success'=> true, 'message'=> 'Batch completed with id: ' . $lastId]);
+            ImportHelperFacade::log(['success' => true, 'message' => 'Batch completed with id: ' . $lastId]);
         }
-
     }
 
     /**
