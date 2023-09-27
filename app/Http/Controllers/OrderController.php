@@ -103,6 +103,10 @@ class OrderController extends Controller
     public function update(Request $request, Order $order)
     {
 
+        if ($order->paid == 1) {
+            return $this->customResponse(false, 'Cannot add items to a paid order');
+        }
+
         $validated = $request->validate(
             [
                 'products' => 'filled',
@@ -160,17 +164,16 @@ class OrderController extends Controller
      */
     public function add(Request $request, Order $order)
     {
-        //
-        try {
-            $validated = $request->validate(
-                [
-                    'product_id' => 'required|exists:products,id'
-                ]
-            );
+        if ($order->paid == 1) {
+            return $this->customResponse(false, 'Cannot add items to a paid order');
+        }
 
-            if ($order->paid == 1) {
-                return $this->customResponse(false, 'Cannot add items to a paid order');
-            }
+        $validated = $request->validate(
+            [
+                'product_id' => 'required|exists:products,id'
+            ]
+        );
+        try {
 
             if ($order) {
                 $productOrders = OrderDetail::firstOrCreate(
@@ -193,10 +196,21 @@ class OrderController extends Controller
 
     public function pay(Request $request, Order $order)
     {
+
+        if ($order->paid == 1) {
+            return $this->customResponse(false, 'Already paid for the order!');
+        }
         try {
+
             $orderDetails = $order->load('orderDetails.product');
 
-            $price = $orderDetails->orderDetails->pluck('product')->pluck('price')->sum();
+            $products = $orderDetails->orderDetails->pluck('product');
+
+            if ($products->isEmpty()) {
+                return $this->customResponse(false, 'No products to checkout!');
+            }
+
+            $price = $products->pluck('price')->sum();
 
 
             $response = Http::post(
